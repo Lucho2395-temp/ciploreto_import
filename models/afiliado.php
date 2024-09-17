@@ -54,6 +54,30 @@ class Afiliado {
         $result = 1;
 		return $result;
 	}
+	public function guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo_mensual, $deuda_estado_pagado, $deuda_estado){
+		$sql = "insert into deudas (id_afiliado, deuda_anho, deuda_mes, deuda_costo, deuda_estado_pagado, deuda_estado) 
+                VALUES (?,?,?,?,?,?)";
+
+        $stm = $this->db->prepare($sql);
+        $stm->execute([
+            $id_afiliado, $anho, $mes, $deuda_costo_mensual, $deuda_estado_pagado, $deuda_estado
+        ]);
+        $result = 1;
+		return $result;
+	}
+	public function guardar_mensualidad($id_afiliado, $anho, $mes, $costo_mensual, $mensualidad_estado,$mensualidad_estado_pagado){
+        $fecha = "{$anho}-{$mes}-01";
+		$sql = "insert into mensualidades (id_afiliado, mensualidad_monto, mensualidad_anho, mensualidad_mes, mensualidad_fecha_ultimo_pago,
+                           mensualidad_estado, mensualidad_estado_pagado) 
+                VALUES (?,?,?,?,?,?,?)";
+
+        $stm = $this->db->prepare($sql);
+        $stm->execute([
+            $id_afiliado, $costo_mensual, $anho, $mes,$fecha, $mensualidad_estado,$mensualidad_estado_pagado
+        ]);
+        $result = 1;
+		return $result;
+	}
 
 	public function listar_capitulos(){
 		$sql = "select * from capitulos";
@@ -91,6 +115,14 @@ class Afiliado {
         $stm = $this->db->prepare($sql);
         $stm->execute();
         $result = $stm->fetchAll();
+		return $result;
+	}
+	public function listar_afiliado_x_codigo_cip($codigo){
+		$sql = "select * from afiliados where afiliado_cip = ?";
+
+        $stm = $this->db->prepare($sql);
+        $stm->execute([$codigo]);
+        $result = $stm->fetch();
 		return $result;
 	}
 	public function listar_afiliados_especialidados_x_id_afiliado($id_afiliado){

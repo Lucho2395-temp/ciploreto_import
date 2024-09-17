@@ -50,6 +50,7 @@ class AfiliadoController {
 
     public function importar_Archivo(){
         $dominio = 'http://127.0.0.1/ciploreto_import/';
+        $afiliado = new Afiliado();
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['archivo'])) {
             $archivo = $_FILES['archivo'];
 
@@ -63,9 +64,13 @@ class AfiliadoController {
             // Ruta donde se guardará el archivo temporalmente
             $targetDir = "./media/";
             $targetFile = $targetDir . basename($archivo["name"]);
+            $fecha_hora_hoy = date('Y-m-d H:i:s');
+            $fecha_hoy = date('Y-m-d');
+            //VARIABLE PARA GUARDAR EN TABLA DEUDAS
+            $fecha_limite = date('Ym');
 
             if($_POST['tipo_tabla']==1){
-                
+                //SUBIR DATOS AFILIADOS
                 // Mover el archivo a la carpeta de destino
                 if (move_uploaded_file($archivo["tmp_name"], $targetFile)) {
                     echo "El archivo " . basename($archivo["name"]) . " ha sido subido.";
@@ -75,7 +80,6 @@ class AfiliadoController {
                         // Obtener la primera fila como los nombres de las columnas
                         //$headers = fgetcsv($handle, 1000, ",");
 
-                        $afiliado = new Afiliado();
                         $model = new Afiliado();
                         //IMPORTAR AFILIADOS
                         // Leer cada fila del CSV
@@ -116,9 +120,8 @@ class AfiliadoController {
                             $estadoFinal  = 1;
                             $id_user_register  = 1;
                             $us_microtime = microtime();
-                            $fecha_hoy = date('Y-m-d H:i:s');
-                            $created_at   = $fecha_hoy;
-                            $updated_at   = $fecha_hoy;
+                            $created_at   = $fecha_hora_hoy;
+                            $updated_at   = $fecha_hora_hoy;
                             // Agrega más campos según tus necesidades
                             echo "<br>ESPECIALIDADES: <br>";
                             $conteo = 1;
@@ -197,7 +200,215 @@ class AfiliadoController {
                     echo "Error al subir el archivo.";
                 }
             }else{
-                echo "La importacion de la Tabla aún no está lista.";
+                //SUBIR PAGOS A LA TABLA DEUDAS
+                // Mover el archivo a la carpeta de destino
+                if (move_uploaded_file($archivo["tmp_name"], $targetFile)) {
+                    echo "El archivo " . basename($archivo["name"]) . " ha sido subido.";
+
+                    // Abrir el archivo CSV
+                    if (($handle = fopen($targetFile, 'r')) !== FALSE) {
+                        // Leer encabezados (e.g., CIP, 1992, 1993, ...)
+                        $header = fgetcsv($handle, 1500, ";");
+                        // Recorrer cada línea (registro)
+                        while (($data = fgetcsv($handle, 1500, ';')) !== FALSE) {
+                            // Tomamos el código CIP (primer campo de cada fila)
+                            $codigo_cip = $data[0];
+                            // Obtener el id_afiliado a partir del código CIP
+                            $afialiado_dato = $afiliado->listar_afiliado_x_codigo_cip($codigo_cip);
+                            $id_afiliado = $afialiado_dato['id_afiliado'];
+                            // Si no encuentra el id_afiliado, continuar con la siguiente fila
+                            if (!empty($id_afiliado)) {
+                                // Procesar los pagos año a año hasta 2009
+                                if(!empty($afialiado_dato['afiliado_fechaIncorporacion'])){
+                                    $anho_incorporacion = date('Y', strtotime($afialiado_dato['afiliado_fechaIncorporacion']));
+                                    $mes_incorporacion = date('n', strtotime($afialiado_dato['afiliado_fechaIncorporacion'])); // Mes sin ceros a la izquierda
+                                }else{
+                                    $anho_incorporacion = '';
+                                    $mes_incorporacion = ''; // Mes sin ceros a la izquierda
+                                }
+                                for ($i = 1; $i <= 18; $i++) { // De 1992 a 2009
+                                    $anho = $header[$i];
+                                    $entr = true;
+                                    $deuda_costo = '';
+                                    if(!empty($afialiado_dato['afiliado_fechaIncorporacion'])){
+                                        if($anho >= $anho_incorporacion){
+                                            if($data[$i]==='0'){
+                                                //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
+                                                $entr = false;
+                                            }else if(empty($data[$i])){
+                                                $deuda_costo = $this->obtenerPrecio_anho($anho);
+                                            }else{
+                                                $deuda_costo = str_replace(',', '.', $data[$i]); // Ejemplo: asignar valor por defecto si está vacío
+                                            }
+                                            $deuda_estado_pagado = 1;
+                                            $deuda_estado = 1;
+                                            if($entr){
+                                                $deuda_costo_mensual = $deuda_costo / 12;
+                                                //RECORRO LOS 12 MESES
+                                                for ($j=1; $j<=12; $j++){
+                                                    if($anho == $anho_incorporacion) {
+                                                        if($j >= $mes_incorporacion){
+                                                            $entr_2 = true;
+                                                        }else{
+                                                            $entr_2 = false;
+                                                        }
+                                                    }else{
+                                                        $entr_2 = true;
+                                                    }
+                                                    if($entr_2){
+                                                        $mes = $j;
+                                                        // Insertar en la base de datos
+                                                        $result = $afiliado->guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo_mensual, $deuda_estado_pagado, $deuda_estado);
+
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }else{
+                                        if($data[$i]==='0'){
+                                            //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
+                                            $entr = false;
+                                        }else if(empty($data[$i])){
+                                            $deuda_costo = $this->obtenerPrecio_anho($anho);
+                                        }else{
+                                            $deuda_costo = str_replace(',', '.', $data[$i]); // Ejemplo: asignar valor por defecto si está vacío
+                                        }
+                                        $deuda_estado_pagado = 1;
+                                        $deuda_estado = 1;
+                                        if($entr){
+                                            $deuda_costo_mensual = $deuda_costo / 12;
+                                            //RECORRO LOS 12 MESES
+                                            for ($j=1; $j<=12; $j++){
+                                                $mes = $j;
+                                                // Insertar en la base de datos
+                                                $result = $afiliado->guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo_mensual, $deuda_estado_pagado, $deuda_estado);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Procesar los pagos mes a mes desde 2010
+                                for ($i = 19; $i < count($header); $i++) {
+
+                                    $anho_mes = $header[$i];
+                                    $anho = '20'.substr($anho_mes, -2);
+                                    //$anho = date('Y', strtotime($string_anho));
+                                    $string_mes = substr($anho_mes, 0,-2);
+                                    $mes = $this->convertirMes($string_mes);
+
+                                    $fecha_limite_excel = $anho.str_pad($mes, 2, '0', STR_PAD_LEFT);
+                                    $entr = true;
+                                    $deuda_costo = '';
+                                    //SI LA FECHA DE LA COLUMNA DEL EXCEL ES MENOR QUE LA FECHA DE HOY
+                                    //SE TIENE QUE GUARDAR EN TABLA DEUDA SINO EN TABLA MENSUALIDAD
+                                    if($fecha_limite_excel < $fecha_limite){
+                                        if(!empty($afialiado_dato['afiliado_fechaIncorporacion'])) {
+                                            if ($anho >= $anho_incorporacion) {
+                                                if ($data[$i] === '0') {
+                                                    //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
+                                                    $entr = false;
+                                                } else if (empty($data[$i])) {
+                                                    $deuda_costo = $this->obtenerPrecio_anho_mes($anho, $mes);
+                                                } else {
+                                                    $deuda_costo = str_replace(',', '.', $data[$i]); // Ejemplo: asignar valor por defecto si está vacío
+                                                }
+                                                $deuda_estado_pagado = 1;
+                                                $deuda_estado = 1;
+                                                if ($entr) {
+                                                    if ($anho == $anho_incorporacion) {
+                                                        if ($mes >= $mes_incorporacion) {
+                                                            $entr_2 = true;
+                                                        } else {
+                                                            $entr_2 = false;
+                                                        }
+                                                    } else {
+                                                        $entr_2 = true;
+                                                    }
+                                                    if ($entr_2) {
+                                                        // Insertar en la base de datos
+                                                        $result = $afiliado->guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo, $deuda_estado_pagado, $deuda_estado);
+                                                    }
+                                                }
+                                            }
+                                        }else{
+                                            if($data[$i]==='0'){
+                                                //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
+                                                $entr = false;
+                                            }else if(empty($data[$i])){
+                                                $deuda_costo = $this->obtenerPrecio_anho_mes($anho,$mes);
+                                            }else{
+                                                $deuda_costo = str_replace(',', '.', $data[$i]); // Ejemplo: asignar valor por defecto si está vacío
+                                            }
+                                            $deuda_estado_pagado = 1;
+                                            $deuda_estado = 1;
+                                            if($entr){
+                                                $result = $afiliado->guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo, $deuda_estado_pagado, $deuda_estado);
+                                            }
+                                        }
+                                    }else{
+                                        //GUARDAR PAGO EN MENSUALIDAD
+                                        if(!empty($afialiado_dato['afiliado_fechaIncorporacion'])) {
+                                            if ($anho >= $anho_incorporacion) {
+                                                if($data[$i]==='0'){
+                                                    //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
+                                                    $entr = true;
+                                                    $deuda_costo = $this->obtenerPrecio_anho_mes($anho,$mes);
+                                                }else{
+                                                    $entr = false;
+                                                }
+                                                $mensualidad_estado_pagado = 0;
+                                                $mensualidad_estado = 1;
+                                                if($entr){
+                                                    if($anho == $anho_incorporacion) {
+                                                        if($mes >= $mes_incorporacion){
+                                                            $entr_2 = true;
+                                                        }else{
+                                                            $entr_2 = false;
+                                                        }
+                                                    }else{
+                                                        $entr_2 = true;
+                                                    }
+                                                    if($entr_2){
+                                                        // Insertar en la base de datos en MENSUALIDAD
+                                                        $result = $afiliado->guardar_mensualidad($id_afiliado, $anho, $mes, $deuda_costo, $mensualidad_estado, $mensualidad_estado_pagado);
+                                                        //$result = $afiliado->guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo, $deuda_estado_pagado, $deuda_estado);
+                                                    }
+                                                }
+                                            }
+                                        }else{
+                                            if($data[$i]==='0'){
+                                                //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
+                                                $entr = true;
+                                                $deuda_costo = $this->obtenerPrecio_anho_mes($anho,$mes);
+                                            }else{
+                                                $entr = false;
+                                            }
+                                            $mensualidad_estado_pagado = 0;
+                                            $mensualidad_estado = 1;
+                                            if($entr){
+                                                // Insertar en la base de datos en MENSUALIDAD
+                                                $result = $afiliado->guardar_mensualidad($id_afiliado, $anho, $mes, $deuda_costo, $mensualidad_estado, $mensualidad_estado_pagado);
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }else{
+                                echo "No se encontró el afiliado con CIP: $codigo_cip. Saltando fila. <br>";
+                            }
+
+                        }
+                        fclose($handle);
+                        echo "Datos importados correctamente.";
+
+
+                    } else {
+                        echo "Error al abrir el archivo CSV.";
+                    }
+                } else {
+                    echo "Error al subir el archivo.";
+                }
+                //echo "La importacion de la Tabla aún no está lista.";
             }
         } else {
             echo "No se ha recibido ningún archivo.";
@@ -433,6 +644,144 @@ class AfiliadoController {
             echo "Nombre Completo: $ejemplo<br>";
             echo "Apellidos: " . $resultado['apellidos'] . "<br>";
             echo "Nombres: " . $resultado['nombres'] . "<br><br>";
+        }
+    }
+
+    // Función para convertir letras de meses a números
+    function convertirMes($letraMes) {
+        $meses = ['E' => '1', 'F' => '2', 'M' => '3', 'A' => '4', 'MA' => '5','MY' => '5', 'J' => '6',
+            'JU' => '7', 'JL' =>'7', 'AG' => '8', 'S' => '9', 'SE' => '9', 'O' => '10', 'OC' => '10',
+            'N' => '11', 'NO' => '11', 'D' => '12', 'DI' => '12'
+            ];
+        return $meses[$letraMes];
+    }
+    function obtenerPrecio_anho($anio) {
+        // Datos de ejemplo organizados en un array multidimensional
+        $precios = [
+            1992 => 60,
+            1993 => 60,
+            1994 => 60,
+            1995 => 60,
+            1996 => 120,
+            1997 => 120,
+            1998 => 135.60,
+            1999 => 180,
+            2000 => 180,
+            2001 => 180,
+            2002 => 180,
+            2003 => 180,
+            2004 => 180,
+            2005 => 180,
+            2006 => 180,
+            2007 => 215,
+            2008 => 240,
+            2009 => 240
+            // Continúa agregando años y meses
+        ];
+
+
+        // Verificar si el año y el mes existen en los datos
+        if (isset($precios[$anio])) {
+            return $precios[$anio];
+        } else {
+            return "No se encontró el precio para el año $anio";
+        }
+    }
+    function obtenerPrecio_anho_mes($anio, $mes) {
+        // Datos de ejemplo organizados en un array multidimensional
+        $precios = [
+            2010 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2011 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2012 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2013 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2014 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2015 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2016 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2017 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2018 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2019 => [
+                '1' => 20, '2' => 20, '3' => 20, '4' => 20,
+                '5' => 20, '6' => 20, '7' => 20, '8' => 20,
+                '9' => 20, '10' => 20, '11' => 20, '12' => 20
+            ],
+            2020 => [
+                '1' => 25, '2' => 25, '3' => 25, '4' => 25,
+                '5' => 25, '6' => 25, '7' => 25, '8' => 25,
+                '9' => 25, '10' => 25, '11' => 25, '12' => 25
+            ],
+            2021 => [
+                '1' => 25, '2' => 25, '3' => 25, '4' => 25,
+                '5' => 25, '6' => 25, '7' => 25, '8' => 25,
+                '9' => 25, '10' => 25, '11' => 25, '12' => 25
+            ],
+            2022 => [
+                '1' => 25, '2' => 25, '3' => 25, '4' => 25,
+                '5' => 25, '6' => 25, '7' => 25, '8' => 25,
+                '9' => 25, '10' => 25, '11' => 25, '12' => 25
+            ],
+            2023 => [
+                '1' => 25, '2' => 25, '3' => 25, '4' => 25,
+                '5' => 25, '6' => 25, '7' => 25, '8' => 25,
+                '9' => 25, '10' => 25, '11' => 25, '12' => 25
+            ],
+            2024 => [
+                '1' => 25, '2' => 25, '3' => 25, '4' => 25,
+                '5' => 25, '6' => 25, '7' => 25, '8' => 25,
+                '9' => 25, '10' => 25, '11' => 25, '12' => 25
+            ],
+            2025 => [
+                '1' => 25, '2' => 25, '3' => 25, '4' => 25,
+                '5' => 25, '6' => 25, '7' => 25, '8' => 25,
+                '9' => 25, '10' => 25, '11' => 25, '12' => 25
+            ],
+            2026 => [
+                '1' => 25, '2' => 25, '3' => 25, '4' => 25,
+                '5' => 25, '6' => 25, '7' => 25, '8' => 25,
+                '9' => 25, '10' => 25, '11' => 25, '12' => 25
+            ],
+        ];
+
+        // Verificar si el año y el mes existen en los datos
+        if (isset($precios[$anio]) && isset($precios[$anio][$mes])) {
+            return $precios[$anio][$mes];
+        } else {
+            return "No se encontró el precio para el año $anio y el mes $mes.";
         }
     }
 }
