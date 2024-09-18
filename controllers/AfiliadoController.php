@@ -356,7 +356,7 @@ class AfiliadoController {
                                                 }else{
                                                     $entr = false;
                                                 }
-                                                $mensualidad_estado_pagado = 0;
+                                                $mensualidad_estado_pagado = 1;
                                                 $mensualidad_estado = 1;
                                                 if($entr){
                                                     if($anho == $anho_incorporacion) {
