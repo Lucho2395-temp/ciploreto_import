@@ -302,7 +302,7 @@ class AfiliadoController {
                                     //SI LA FECHA DE LA COLUMNA DEL EXCEL ES MENOR QUE LA FECHA DE HOY
                                     //SE TIENE QUE GUARDAR EN TABLA DEUDA SINO EN TABLA MENSUALIDAD
                                     //SI LA COLUMNA DEL EXCEL ES UNA FECHA ANTES DE LA ACTUAL VA A ENTRAR A LLENAR EN DEUDA
-                                    if($fecha_limite_excel < $fecha_limite){
+                                    if($fecha_limite_excel <= $fecha_limite){
                                         if(!empty($afialiado_dato['afiliado_fechaIncorporacion'])) {
                                             if ($anho >= $anho_incorporacion) {
                                                 if ($data[$i] === '0') {
