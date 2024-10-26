@@ -185,6 +185,8 @@ class AfiliadoController {
 
                                     }
                                 }
+                            }else{
+                                echo "<br>----Error----".$cip;
                             }
                             
                         }
