@@ -100,6 +100,14 @@ class AfiliadoController {
                             $id_especialidad = $this->conseguir_array_especialidad($especialidad);
                             $sexo = ($data[5]=='F')?'F':'M';
                             $fecha_naci = $this->obtener_fecha($data[6]);
+                            if(empty($id_capitulo) || empty($id_especialidad)){
+                                echo "ERROR CAPITULO O ESPECIALIDAD <br>";
+                                echo $cip."<br>";
+                                echo $capitulo_nombre."<br>";
+                                echo $especialidad."<br>";
+                                break;
+
+                            }
                             
                             $dni = $data[7];
                             $direccion = $data[8];
@@ -429,7 +437,7 @@ class AfiliadoController {
             $id_capitulo = 4;
         }else if($capitulo == 'FORESTALES' || $capitulo == 'FORESTALES - CIVILES'){
             $id_capitulo = 5;
-        }else if($capitulo == 'INDUSTRIAL Y AFINES' || $capitulo == 'INDUSTRIALES Y AFINES' || $capitulo == 'INDUSTRIALES Y AFINES - CIVIL'){
+        }else if($capitulo == 'INDUSTRIAL Y AFINES' || $capitulo == 'INDUSTRIALES Y AFINES' || $capitulo == 'INDUSTRIALES Y AFINES - CIVIL' || $capitulo == 'EN INDUSTRIAS ALIMENTARIAS Y AFINES'){
             $id_capitulo = 6;
         }else if($capitulo == 'MECANICOS ELECTRICISTAS'){
             $id_capitulo = 7;
@@ -501,7 +509,7 @@ class AfiliadoController {
                 if(!empty($existe)){
                     $ids_especialidades[] = $existe['id_especialidad'];
                 }
-            }else if($especialidad == "FORESTAL - CIVIL" || $especialidad == 'FORESTAL -CIVIL'){
+            }else if($especialidad == "FORESTAL - CIVIL" || $especialidad == 'FORESTAL -CIVIL' || $especialidad == 'INGENIERIA FORESTAL'){
                 $existe = $afiliado->listar_especialidad_x_nombre('FORESTAL');
                 if(!empty($existe)){
                     $ids_especialidades[] = $existe['id_especialidad'];
