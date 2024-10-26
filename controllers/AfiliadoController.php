@@ -186,7 +186,7 @@ class AfiliadoController {
                                     }
                                 }
                             }else{
-                                echo "<br>----Error----".$cip;
+                                echo "<br>----No encuentra -----".$cip;
                             }
                             
                         }
