@@ -195,6 +195,7 @@ class AfiliadoController {
                                 }
                             }else{
                                 echo "<br>----No encuentra -----".$cip;
+                                break;
                             }
                             
                         }
@@ -213,7 +214,7 @@ class AfiliadoController {
                 //SUBIR PAGOS A LA TABLA DEUDAS
                 // Mover el archivo a la carpeta de destino
                 if (move_uploaded_file($archivo["tmp_name"], $targetFile)) {
-                    echo "El archivo " . basename($archivo["name"]) . " ha sido subido.";
+                    echo "El archivo " . basename($archivo["name"]) . " se está subiendo.";
 
                     // Abrir el archivo CSV
                     if (($handle = fopen($targetFile, 'r')) !== FALSE) {
@@ -245,6 +246,12 @@ class AfiliadoController {
                                             if($data[$i]==='0'){
                                                 //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
                                                 $entr = false;
+                                            } elseif (preg_match('/[a-zA-Z]/', $data[$i])) {
+                                                // Caso en el que el valor contiene letras
+                                                echo "CIP '{$codigo_cip}' .<br>";
+                                                echo "El valor '{$data[$i]}' contiene letras. Por favor, corrige el archivo Excel.<br>";
+                                                // Puedes detener la ejecución o simplemente notificar al usuario
+                                                exit; // Detiene la ejecución si es necesario
                                             }else if(empty($data[$i])){
                                                 $deuda_costo = $this->obtenerPrecio_anho($anho);
                                             }else{
@@ -318,7 +325,13 @@ class AfiliadoController {
                                                 if ($data[$i] === '0') {
                                                     //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
                                                     $entr = false;
-                                                } else if (empty($data[$i])) {
+                                                }else if(preg_match('/[a-zA-Z]/', $data[$i])){
+                                                    // Caso en el que el valor contiene letras
+                                                    echo "CIP '{$codigo_cip}' .<br>";
+                                                    echo "El valor '{$data[$i]}' contiene letras. Por favor, corrige el archivo Excel.<br>";
+                                                    // Puedes detener la ejecución o simplemente notificar al usuario
+                                                    exit; // Detiene la ejecución si es necesario
+                                                }else if (empty($data[$i])) {
                                                     $deuda_costo = $this->obtenerPrecio_anho_mes($anho, $mes);
                                                 } else {
                                                     $deuda_costo = str_replace(',', '.', $data[$i]); // Ejemplo: asignar valor por defecto si está vacío
@@ -345,6 +358,12 @@ class AfiliadoController {
                                             if($data[$i]==='0'){
                                                 //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
                                                 $entr = false;
+                                            }else if(preg_match('/[a-zA-Z]/', $data[$i])){
+                                                // Caso en el que el valor contiene letras
+                                                echo "CIP '{$codigo_cip}' .<br>";
+                                                echo "El valor '{$data[$i]}' contiene letras. Por favor, corrige el archivo Excel.<br>";
+                                                // Puedes detener la ejecución o simplemente notificar al usuario
+                                                exit; // Detiene la ejecución si es necesario
                                             }else if(empty($data[$i])){
                                                 $deuda_costo = $this->obtenerPrecio_anho_mes($anho,$mes);
                                             }else{
@@ -782,6 +801,11 @@ class AfiliadoController {
                 '9' => 25, '10' => 25, '11' => 25, '12' => 25
             ],
             2026 => [
+                '1' => 25, '2' => 25, '3' => 25, '4' => 25,
+                '5' => 25, '6' => 25, '7' => 25, '8' => 25,
+                '9' => 25, '10' => 25, '11' => 25, '12' => 25
+            ],
+            2027 => [
                 '1' => 25, '2' => 25, '3' => 25, '4' => 25,
                 '5' => 25, '6' => 25, '7' => 25, '8' => 25,
                 '9' => 25, '10' => 25, '11' => 25, '12' => 25
