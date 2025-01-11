@@ -68,6 +68,7 @@ class AfiliadoController {
             $fecha_hoy = date('Y-m-d');
             //VARIABLE PARA GUARDAR EN TABLA DEUDAS
             $fecha_limite = date('Ym');
+            $fecha_mes_anterior = date('Ym', strtotime('-1 month'));
 
             if($_POST['tipo_tabla']==1){
                 //SUBIR DATOS AFILIADOS
@@ -319,7 +320,7 @@ class AfiliadoController {
                                     //SI LA FECHA DE LA COLUMNA DEL EXCEL ES MENOR QUE LA FECHA DE HOY
                                     //SE TIENE QUE GUARDAR EN TABLA DEUDA SINO EN TABLA MENSUALIDAD
                                     //SI LA COLUMNA DEL EXCEL ES UNA FECHA ANTES DE LA ACTUAL VA A ENTRAR A LLENAR EN DEUDA
-                                    if($fecha_limite_excel <= $fecha_limite){
+                                    if($fecha_limite_excel < $fecha_mes_anterior){
                                         if(!empty($afialiado_dato['afiliado_fechaIncorporacion'])) {
                                             if ($anho >= $anho_incorporacion) {
                                                 if ($data[$i] === '0') {
@@ -376,9 +377,64 @@ class AfiliadoController {
                                             }
                                         }
                                     }else{
-                                        //GUARDAR PAGO EN MENSUALIDAD
-                                        if(!empty($afialiado_dato['afiliado_fechaIncorporacion'])) {
-                                            if ($anho >= $anho_incorporacion) {
+                                        if($fecha_limite_excel == $fecha_mes_anterior){
+                                            if($data[$i]==='0'){
+                                                //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
+                                                $deuda_costo = $this->obtenerPrecio_anho_mes($anho,$mes);
+                                                $mensualidad_estado_pagado = 1;
+                                                $mensualidad_estado = 1;
+                                                $result = $afiliado->guardar_mensualidad($id_afiliado, $anho, $mes, $deuda_costo, $mensualidad_estado, $mensualidad_estado_pagado);
+                                            }else{
+                                                if(preg_match('/[a-zA-Z]/', $data[$i])){
+                                                    // Caso en el que el valor contiene letras
+                                                    echo "CIP '{$codigo_cip}' .<br>";
+                                                    echo "El valor '{$data[$i]}' contiene letras. Por favor, corrige el archivo Excel.<br>";
+                                                    $entr = false;
+                                                    // Puedes detener la ejecución o simplemente notificar al usuario
+                                                    exit; // Detiene la ejecución si es necesario
+                                                }else if(empty($data[$i])){
+                                                    $deuda_costo = $this->obtenerPrecio_anho_mes($anho,$mes);
+                                                }else{
+                                                    $deuda_costo = str_replace(',', '.', $data[$i]); // Ejemplo: asignar valor por defecto si está vacío
+                                                }
+                                                $deuda_estado_pagado = 1;
+                                                $deuda_estado = 1;
+                                                if($entr){
+                                                    $result = $afiliado->guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo, $deuda_estado_pagado, $deuda_estado);
+                                                }
+                                            }
+
+                                        }else{
+                                            //GUARDAR PAGO EN MENSUALIDAD
+                                            if(!empty($afialiado_dato['afiliado_fechaIncorporacion'])) {
+                                                if ($anho >= $anho_incorporacion) {
+                                                    if($data[$i]==='0'){
+                                                        //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
+                                                        $entr = true;
+                                                        $deuda_costo = $this->obtenerPrecio_anho_mes($anho,$mes);
+                                                    }else{
+                                                        $entr = false;
+                                                    }
+                                                    $mensualidad_estado_pagado = 1;
+                                                    $mensualidad_estado = 1;
+                                                    if($entr){
+                                                        if($anho == $anho_incorporacion) {
+                                                            if($mes >= $mes_incorporacion){
+                                                                $entr_2 = true;
+                                                            }else{
+                                                                $entr_2 = false;
+                                                            }
+                                                        }else{
+                                                            $entr_2 = true;
+                                                        }
+                                                        if($entr_2){
+                                                            // Insertar en la base de datos en MENSUALIDAD
+                                                            $result = $afiliado->guardar_mensualidad($id_afiliado, $anho, $mes, $deuda_costo, $mensualidad_estado, $mensualidad_estado_pagado);
+                                                            //$result = $afiliado->guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo, $deuda_estado_pagado, $deuda_estado);
+                                                        }
+                                                    }
+                                                }
+                                            }else{
                                                 if($data[$i]==='0'){
                                                     //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
                                                     $entr = true;
@@ -386,38 +442,12 @@ class AfiliadoController {
                                                 }else{
                                                     $entr = false;
                                                 }
-                                                $mensualidad_estado_pagado = 1;
+                                                $mensualidad_estado_pagado = 0;
                                                 $mensualidad_estado = 1;
                                                 if($entr){
-                                                    if($anho == $anho_incorporacion) {
-                                                        if($mes >= $mes_incorporacion){
-                                                            $entr_2 = true;
-                                                        }else{
-                                                            $entr_2 = false;
-                                                        }
-                                                    }else{
-                                                        $entr_2 = true;
-                                                    }
-                                                    if($entr_2){
-                                                        // Insertar en la base de datos en MENSUALIDAD
-                                                        $result = $afiliado->guardar_mensualidad($id_afiliado, $anho, $mes, $deuda_costo, $mensualidad_estado, $mensualidad_estado_pagado);
-                                                        //$result = $afiliado->guardar_deuda($id_afiliado, $anho, $mes, $deuda_costo, $deuda_estado_pagado, $deuda_estado);
-                                                    }
+                                                    // Insertar en la base de datos en MENSUALIDAD
+                                                    $result = $afiliado->guardar_mensualidad($id_afiliado, $anho, $mes, $deuda_costo, $mensualidad_estado, $mensualidad_estado_pagado);
                                                 }
-                                            }
-                                        }else{
-                                            if($data[$i]==='0'){
-                                                //SI ES 0 SIGNNIFICA QUE NO TIENE DEUDA Y NO DEBE REGISTAR NADA
-                                                $entr = true;
-                                                $deuda_costo = $this->obtenerPrecio_anho_mes($anho,$mes);
-                                            }else{
-                                                $entr = false;
-                                            }
-                                            $mensualidad_estado_pagado = 0;
-                                            $mensualidad_estado = 1;
-                                            if($entr){
-                                                // Insertar en la base de datos en MENSUALIDAD
-                                                $result = $afiliado->guardar_mensualidad($id_afiliado, $anho, $mes, $deuda_costo, $mensualidad_estado, $mensualidad_estado_pagado);
                                             }
                                         }
                                     }
